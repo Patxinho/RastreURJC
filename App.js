@@ -15,17 +15,70 @@ import {Root, Container, Header, Title, Content, Button, Left, Right, Body, Icon
 import MapView from 'react-native-maps';
 import nodejs from 'nodejs-mobile-react-native';
 
+const { width, height } = Dimensions.get('window');
+const ASPECT_RATIO = width / height;
+const LATITUDE = 49.93489833333333;
+const LONGITUDE = -4.887698333333334;
+const LATITUDE_DELTA = 0.0922;
+const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
+let id = 0;
+
+function randomColor() {
+  return `#${Math.floor(Math.random() * 16777215).toString(16)}`;
+}
 
 export default class App extends Component {
+  constructor (props){
+    super(props);
+    this.state = { 
+      region: {
+        latitude: LATITUDE,
+        longitude: LONGITUDE,
+        latitudeDelta: LATITUDE_DELTA,
+        longitudeDelta: LONGITUDE_DELTA,
+      },
+      markers: []
+    };
+  }
+
   componentWillMount(){
     nodejs.start();
     nodejs.channel.addListener(
       "message",
       (msg) => {
-        alert("From node: " + msg);
+        Toast.show({
+          text: msg,
+          position: 'bottom',
+          buttonText: 'Okay'
+        })
       },
       this 
     );
+  }
+
+  getLocation() {
+    return fetch('http://localhost:3000/act?role=api&cmd=getCoords')
+      .then(response => response.json())
+      .then(responseJson => {
+        this.setState({
+          markers: responseJson.location
+        }),alert(this.state.markers)
+      })
+      .catch(error => {
+        console.error(error);
+      });
+  }
+  onMapPress(e) {
+    this.setState({
+      markers: [
+        ...this.state.markers,
+        {
+          coordinate: e.nativeEvent.coordinate,
+          key: id++,
+          color: randomColor(),
+        },
+      ],
+    });
   }
   render() {
     return (
@@ -40,27 +93,25 @@ export default class App extends Component {
             <Item>
               <Icon active name='home' />
               <Input placeholder="Inserte IP" />
-              <Button full  onPress={()=> Toast.show({
-                text: 'Wrong password!',
-                position: 'bottom',
-                buttonText: 'Okay'
-              })}>
+              <Button full  onPress={()=> this.getLocation()}>
                 <Text>Get Server</Text>
               </Button> 
             </Item>
           </Content>
-          <View  style={styles.container}>
+          <View style={styles.container}>
             <MapView style={styles.map}
-              region={{
-                latitude: 40.348042,
-                longitude: -3.818996,
-                latitudeDelta: 0.015,
-                longitudeDelta: 0.0121,
-              }}>
+              initialRegion={this.state.region}>
+              {this.state.markers.map(marker => (
               <MapView.Marker 
-                coordinate={{latitude: 40.348042, longitude:-3.81899}}
-                title='Casa'
-              />        
+                key = {marker.id}
+                title="This is a title"
+                description={marker.id}
+                coordinate= {{
+                  latitude: marker.latitude,
+                  longitude: marker.longitude,
+                }}
+              />
+              ))}
             </MapView>
           </View>
         </Container>
