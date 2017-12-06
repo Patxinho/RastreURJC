@@ -49,7 +49,7 @@ export default class App extends Component {
         Toast.show({
           text: msg,
           position: 'bottom',
-          buttonText: 'Okay'
+          buttonText: 'Oky'
         })
       },
       this 
