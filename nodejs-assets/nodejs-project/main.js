@@ -14,7 +14,7 @@ seneca.use('seneca-jsonfile-store', {
 
   console.log('ready')
   isReady = true
-  console.log(isReady)
+  rn_bridge.channel.send('true');
 })
 )
 
@@ -61,7 +61,10 @@ seneca.add({ role: 'api', cmd: 'getCoords' }, function (args, callback) {
 rn_bridge.channel.on('message', (msg) => {
   switch(msg) {
     case 'ready':
-      rn_bridge.channel.send(isReady);
+      if (isReady)
+        rn_bridge.channel.send('true');
+      else
+        rn_bridge.channel.send('false');
       break;
       default:
       seneca.act({role:'coords',cmd:'get',location:msg}, function (err, result) {

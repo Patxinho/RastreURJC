@@ -23,9 +23,6 @@ const LATITUDE_DELTA = 0.0922;
 const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 let id = 0;
 
-function randomColor() {
-  return `#${Math.floor(Math.random() * 16777215).toString(16)}`;
-}
 
 export default class App extends Component {
   constructor (props){
@@ -37,7 +34,9 @@ export default class App extends Component {
         latitudeDelta: LATITUDE_DELTA,
         longitudeDelta: LONGITUDE_DELTA,
       },
-      markers: []
+      markers: [],
+      isReady : false,
+      valueIP: ''
     };
   }
 
@@ -46,40 +45,77 @@ export default class App extends Component {
     nodejs.channel.addListener(
       "message",
       (msg) => {
-        Toast.show({
-          text: msg,
-          position: 'bottom',
-          buttonText: 'Oky'
-        })
-      },
+        switch(msg) {
+        case 'true':
+          this.setState({isReady: true});
+          break;
+        case 'false':
+          this.setState({isReady: false});
+          break;
+        default:
+          //nodejs.channel.send('ready');
+          Toast.show({
+            text: msg,
+            position: 'bottom',
+            buttonText: 'Okay'
+          })
+          break;
+      }},
       this 
     );
   }
+  componentDidMount() {
+    
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        this.setState({
+          region: {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            latitudeDelta: LATITUDE_DELTA,
+            longitudeDelta: LONGITUDE_DELTA,
+          }
+        });
+      },
+    (error) => console.log(error.message),
+    { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 },
+    );
+    this.watchID = navigator.geolocation.watchPosition(
+      position => {
+        this.setState({
+          region: {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            latitudeDelta: LATITUDE_DELTA,
+            longitudeDelta: LONGITUDE_DELTA,
+          },
+        });
+        nodejs.channel.send(JSON.stringify(this.state.region));
+      },(error)=>console.log(error.message)
+    );
+    
+  }
 
-  getLocation() {
-    return fetch('http://localhost:3000/act?role=api&cmd=getCoords')
+  componentWillUnmount() {
+    navigator.geolocation.clearWatch(this.watchID);
+  }
+
+  getLocation(valueIP) {
+    if (valueIP==='')
+      valueIP='localhost'
+    var url ='http://'+valueIP+':3000/act?role=api&cmd=getCoordsToday';
+    return fetch(url)
       .then(response => response.json())
       .then(responseJson => {
         this.setState({
           markers: responseJson.location
-        }),alert(this.state.markers)
+        })
       })
       .catch(error => {
         console.error(error);
       });
   }
-  onMapPress(e) {
-    this.setState({
-      markers: [
-        ...this.state.markers,
-        {
-          coordinate: e.nativeEvent.coordinate,
-          key: id++,
-          color: randomColor(),
-        },
-      ],
-    });
-  }
+
   render() {
     return (
       <Root>
@@ -92,8 +128,8 @@ export default class App extends Component {
           <Content>
             <Item>
               <Icon active name='home' />
-              <Input placeholder="Inserte IP" />
-              <Button full  onPress={()=> this.getLocation()}>
+              <Input placeholder="Inserte IP" onChangeText={(text) => this.setState({valueIP:text})} value={this.state.valueIP}/>
+              <Button full  onPress={()=> this.getLocation(this.state.valueIP)} disabled={!(this.state.isReady)} >
                 <Text>Get Server</Text>
               </Button> 
             </Item>
